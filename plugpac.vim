@@ -1,4 +1,4 @@
-" Author: bennyyip (bennyyip@protonmail.com)
+" Author: Ben Yip (yebenmy@protonmail.com)
 " URL:    https://github.com/bennyyip/plugpac.vim
 " ---------------------------------------------------------------------
 let s:TYPE = {
