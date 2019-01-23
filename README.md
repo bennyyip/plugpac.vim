@@ -37,7 +37,14 @@ Pack 'tpope/vim-sensible', { 'rev': 'v1.2 }
 
 call plugpac#end()
 ```
+Reload .vimrc and `:PackInstall` to install plugins.  
 Pack just handle `for` and `on` options(i.e. lazy load, implies `'type': 'opt'`). Other options are passed to `minpac#add` directly. See [minpac][1] for more imformation.
+
+## Commands
+- PackInstall: Install newly added plugins.
+- PackUpdate: Install or update plugins.(`minpac#update()`)
+- PackClean: Uninstall unused plugins.(`minpac#clean()`)
+- PackStatus: See plugins status.(`minpac#status()`)
 
 ## Credit
 K.Takata(as the author of [minpac][1])  
