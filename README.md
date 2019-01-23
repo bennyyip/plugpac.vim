@@ -33,7 +33,7 @@ Pack 'rdnetto/YCM-Generator', { 'branch': 'stable' }
 Pack 'Yggdroot/LeaderF', { 'do': {-> system('./install.sh')} }
 
 " Sepcify commit ID, branch name or tag name to be checked out.
-Pack 'tpope/vim-sensible', { 'rev': 'v1.2 }
+Pack 'tpope/vim-sensible', { 'rev': 'v1.2' }
 
 call plugpac#end()
 ```
