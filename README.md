@@ -52,3 +52,6 @@ Junegunn Choi(as the author of [vim-plug][2])
 
 [1]: https://github.com/k-takata/minpac
 [2]: https://github.com/junegunn/vim-plug
+
+## License
+MIT
