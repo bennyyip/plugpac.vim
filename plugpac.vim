@@ -62,7 +62,7 @@ function! plugpac#add(repo, ...) abort
 
   if has_key(l:opts, 'for')
     let l:ft = type(l:opts.for) == type([]) ? join(l:opts.for, ',') : l:opts.for
-    let s:lazy[l:name] = l:ft
+    let s:lazy.ft[l:name] = l:ft
   endif
 
   if has_key(l:opts, 'on')
