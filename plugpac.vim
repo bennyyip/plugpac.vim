@@ -1,5 +1,7 @@
-" Author: Ben Yip (yebenmy@protonmail.com)
-" URL:    https://github.com/bennyyip/plugpac.vim
+" Author:  Ben Yip (yebenmy@protonmail.com)
+" URL:     https://github.com/bennyyip/plugpac.vim
+" Version: 1.0
+" License: MIT
 " ---------------------------------------------------------------------
 let s:TYPE = {
       \   'string':  type(''),
