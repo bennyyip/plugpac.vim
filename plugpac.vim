@@ -63,7 +63,7 @@ function! plugpac#add(repo, ...) abort
   endif
 
   if has_key(l:opts, 'for')
-    let l:ft = type(l:opts.for) == type([]) ? join(l:opts.for, ',') : l:opts.for
+    let l:ft = type(l:opts.for) == s:TYPE.list ? join(l:opts.for, ',') : l:opts.for
     let s:lazy.ft[l:name] = l:ft
   endif
 
@@ -140,6 +140,7 @@ function! s:setup_command()
   command! -bar PackUpdate  call s:init_minpac() | call minpac#update('', {'do': 'call minpac#status()'})
   command! -bar PackClean   call s:init_minpac() | call minpac#clean()
   command! -bar PackStatus  call s:init_minpac() | call minpac#status()
+  command! -bar -nargs=1 -complete=customlist,s:plugin_dir_complete PackDisable call s:disable_plugin(<q-args>)
 endfunction
 
 function! s:init_minpac()
@@ -149,6 +150,25 @@ function! s:init_minpac()
   for [repo, opts] in items(s:repos)
     call minpac#add(repo, opts)
   endfor
+endfunction
+
+function s:disable_plugin(plugin_dir, ...) abort
+  if !isdirectory(a:plugin_dir)
+    s:err(a:plugin_dir . 'not exists.')
+    return
+  endif
+  let l:dst_dir = substitute(a:plugin_dir, '/start/\ze[^/]\+$', '/opt/', '')
+  if isdirectory(l:dst_dir)
+    s:err(l:dst_dir . 'exists.')
+    return
+  endif
+  call rename(a:plugin_dir, l:dst_dir)
+endfunction
+
+function! s:plugin_dir_complete(A, L, P)
+  let l:pat = 'pack/minpac/start/*'
+  let l:plugin_list = filter(globpath(&packpath, l:pat, 0, 1), {-> isdirectory(v:val)})
+  return filter(l:plugin_list, 'v:val =~ "'. a:A .'"')
 endfunction
 
 function! s:get_plugin_list()

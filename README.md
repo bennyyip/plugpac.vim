@@ -41,10 +41,11 @@ Reload .vimrc and `:PackInstall` to install plugins.
 `Pack` command just handles `for` and `on` options(i.e. lazy load, implies `'type': 'opt'`). Other options are passed to `minpac#add` directly. See [minpac][1] for more imformation.
 
 ## Commands
-- PackInstall: Install newly added plugins.
+- PackInstall: Install newly added plugins.(`minpac#update()`)
 - PackUpdate: Install or update plugins.(`minpac#update()`)
 - PackClean: Uninstall unused plugins.(`minpac#clean()`)
 - PackStatus: See plugins status.(`minpac#status()`)
+- PackDisable: Move a plugin to `minpac/opt`.(`minpac#update` would move plugin back to `minpac/start`, unless the plugin is explicitly optional. Useful for disabling a plugin temporarily)
 
 ## Credit
 K.Takata(as the author of [minpac][1])  
