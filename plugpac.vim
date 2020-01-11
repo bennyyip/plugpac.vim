@@ -11,14 +11,15 @@ let s:TYPE = {
       \ }
 
 function! plugpac#begin()
-  let s:lazy = { 'ft': {}, 'map': {}, 'cmd': {} }
+  let s:lazy = { 'ft': {}, 'map': {}, 'cmd': {}, 'if': {} }
   let s:repos = {}
+  let s:repos_lazy = []
 
   if exists('#PlugPac')
-    augroup PlugPac
-      autocmd!
-    augroup END
+    autocmd! PlugPac
     augroup! PlugPac
+    autocmd! PlugPacLazy
+    augroup! PlugPacLazy
   endif
 
   call s:setup_command()
@@ -45,11 +46,12 @@ function! plugpac#end()
   runtime! OPT ftdetect/**/*.vim
   runtime! OPT after/ftdetect/**/*.vim
 
-  for [name, fts] in items(s:lazy.ft)
+  for [l:name, l:fts] in items(s:lazy.ft)
     augroup PlugPac
-      execute printf('autocmd FileType %s packadd %s', fts, name)
+      execute printf('autocmd FileType %s packadd %s', l:fts, l:name)
     augroup END
   endfor
+
 endfunction
 
 " https://github.com/k-takata/minpac/issues/28
@@ -57,7 +59,20 @@ function! plugpac#add(repo, ...) abort
   let l:opts = get(a:000, 0, {})
   let l:name = substitute(a:repo, '^.*/', '', '')
 
-  " `for` and `on` implies optional
+  " Check if option
+  if has_key(l:opts, 'if')
+    if ! l:opts.if | return | endif
+  endif
+
+  " lazy plugins
+  if has_key(l:opts, 'type')
+    if l:opts.type == 'lazy'
+      call add(s:repos_lazy, l:name)
+      let l:opts['type'] = 'opt'
+    endif
+  endif
+
+  " `for and `on` implies optional
   if has_key(l:opts, 'for') || has_key(l:opts, 'on')
     let l:opts['type'] = 'opt'
   endif
@@ -84,6 +99,18 @@ function! plugpac#add(repo, ...) abort
     endfor
   endif
 
+  " Load plugi config if exist.
+  let s:plugpac_cfg_path = get(g:, 'plugpac_cfg_path', '')
+  if s:plugpac_cfg_path != ''
+    let s:plug_cfg = expand(s:plugpac_cfg_path . '/' . l:name)
+    let s:plug_cfg_vim = expand(s:plugpac_cfg_path . '/' . l:name . '.vim')
+    if filereadable(s:plug_cfg)
+      execute printf('source %s', s:plug_cfg)
+    elseif filereadable(s:plug_cfg_vim)
+      execute printf('source %s', s:plug_cfg_vim)
+    endif
+  endif
+
   let s:repos[a:repo] = l:opts
 endfunction
 
@@ -106,7 +133,7 @@ function! s:err(msg)
 endfunction
 
 function! s:do_cmd(cmd, bang, start, end, args)
-  exec printf('%s%s%s %s', (a:start == a:end ? '' : (a:start.','.a:end)), a:cmd, a:bang, a:args)
+  execute printf('%s%s%s %s', (a:start == a:end ? '' : (a:start.','.a:end)), a:cmd, a:bang, a:args)
 endfunction
 
 function! s:do_map(map, with_prefix, prefix)
@@ -180,3 +207,18 @@ function! s:get_plugin_list()
   call map(s:plugin_list, {-> substitute(v:val, '^.*[/\\]', '', '')})
   return s:plugin_list
 endfunction
+
+let s:idx = 0
+function! PackAddHandler(timer)
+  execute 'packadd ' . s:repos_lazy[s:idx]
+  let s:idx += 1
+  autocmd! PlugPacLazy
+  if s:idx == len(s:repos_lazy)
+    echom "lazy load done !"
+  endif
+endfunction
+
+augroup PlugPacLazy
+  autocmd!
+  autocmd VimEnter * call timer_start(0, 'PackAddHandler', {'repeat': len(s:repos_lazy)})
+augroup END
