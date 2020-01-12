@@ -163,7 +163,7 @@ endfunction
 function! s:setup_command()
   command! -bar -nargs=+ Pack call plugpac#add(<args>)
 
-  command! -bar PackInstall call s:init_minpac() | call minpac#update(keys(filter(copy(minpac#pluglist), {-> !isdirectory(v:val.dir . '/.git')})))
+  command! -bar PackInstall call s:init_minpac() | call minpac#update(keys(filter(copy(g:minpac#pluglist), {-> !isdirectory(v:val.dir . '/.git')})))
   command! -bar PackUpdate  call s:init_minpac() | call minpac#update('', {'do': 'call minpac#status()'})
   command! -bar PackClean   call s:init_minpac() | call minpac#clean()
   command! -bar PackStatus  call s:init_minpac() | call minpac#status()
