@@ -11,7 +11,7 @@ let s:TYPE = {
       \ }
 
 function! plugpac#begin()
-  let s:lazy = { 'ft': {}, 'map': {}, 'cmd': {}, 'if': {} }
+  let s:lazy = { 'ft': {}, 'map': {}, 'cmd': {} }
   let s:repos = {}
   let s:repos_lazy = []
 
@@ -212,9 +212,10 @@ let s:idx = 0
 function! PackAddHandler(timer)
   execute 'packadd ' . s:repos_lazy[s:idx]
   let s:idx += 1
-  autocmd! PlugPacLazy
   if s:idx == len(s:repos_lazy)
     echom "lazy load done !"
+    autocmd! PlugPacLazy
+    augroup! PlugPacLazy
   endif
 endfunction
 
