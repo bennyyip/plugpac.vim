@@ -10,7 +10,12 @@ let s:TYPE = {
       \   'funcref': type(function('call'))
       \ }
 
+
+
 function! plugpac#begin()
+  let s:plugpac_cfg_path = get(g:, 'plugpac_cfg_path', '')
+  let s:plugpac_lazy_source = get(g:, 'plugpac_lazy_source', 0)
+
   let s:lazy = { 'ft': {}, 'map': {}, 'cmd': {} }
   let s:repos = {}
   let s:repos_lazy = []
@@ -97,10 +102,9 @@ function! plugpac#add(repo, ...) abort
   endif
 
   " Load plugi config if exist.
-  let l:plugpac_cfg_path = get(g:, 'plugpac_cfg_path', '')
-  if l:plugpac_cfg_path != ''
-    let l:plug_cfg = expand(l:plugpac_cfg_path . '/' . l:name)
-    let l:plug_cfg_vim = expand(l:plugpac_cfg_path . '/' . l:name . '.vim')
+  if s:plugpac_cfg_path != ''
+    let l:plug_cfg = expand(s:plugpac_cfg_path . '/' . l:name)
+    let l:plug_cfg_vim = expand(s:plugpac_cfg_path . '/' . l:name . '.vim')
     let l:path = ''
     if filereadable(l:plug_cfg)
       let l:path = l:plug_cfg
@@ -108,7 +112,7 @@ function! plugpac#add(repo, ...) abort
       let l:path = l:plug_cfg_vim
     endif
     if l:path != ''
-      if l:type == 'lazy'
+      if l:type == 'lazy' && s:plugpac_lazy_source
         let l:lazy[l:name] = l:path
       else
         execute printf('source %s', l:path)
