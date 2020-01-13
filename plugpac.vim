@@ -58,6 +58,8 @@ endfunction
 function! plugpac#add(repo, ...) abort
   let l:opts = get(a:000, 0, {})
   let l:name = substitute(a:repo, '^.*/', '', '')
+  let l:type = get(l:opts, 'type', 'start')
+  let l:lazy = {}
 
   " Check if option
   if has_key(l:opts, 'if')
@@ -65,24 +67,19 @@ function! plugpac#add(repo, ...) abort
   endif
 
   " lazy plugins
-  if has_key(l:opts, 'type')
-    if l:opts.type == 'lazy'
-      call add(s:repos_lazy, l:name)
-      let l:opts['type'] = 'opt'
-    endif
-  endif
-
-  " `for and `on` implies optional
-  if has_key(l:opts, 'for') || has_key(l:opts, 'on')
+  if l:type == 'lazy'
     let l:opts['type'] = 'opt'
+    let l:lazy[l:name] = ''
   endif
 
   if has_key(l:opts, 'for')
+    let l:opts['type'] = 'opt'
     let l:ft = type(l:opts.for) == s:TYPE.list ? join(l:opts.for, ',') : l:opts.for
     let s:lazy.ft[l:name] = l:ft
   endif
 
   if has_key(l:opts, 'on')
+    let l:opts['type'] = 'opt'
     for l:cmd in s:to_a(l:opts.on)
       if l:cmd =~? '^<Plug>.\+'
         if empty(mapcheck(l:cmd)) && empty(mapcheck(l:cmd, 'i'))
@@ -100,15 +97,27 @@ function! plugpac#add(repo, ...) abort
   endif
 
   " Load plugi config if exist.
-  let s:plugpac_cfg_path = get(g:, 'plugpac_cfg_path', '')
-  if s:plugpac_cfg_path != ''
-    let s:plug_cfg = expand(s:plugpac_cfg_path . '/' . l:name)
-    let s:plug_cfg_vim = expand(s:plugpac_cfg_path . '/' . l:name . '.vim')
-    if filereadable(s:plug_cfg)
-      execute printf('source %s', s:plug_cfg)
-    elseif filereadable(s:plug_cfg_vim)
-      execute printf('source %s', s:plug_cfg_vim)
+  let l:plugpac_cfg_path = get(g:, 'plugpac_cfg_path', '')
+  if l:plugpac_cfg_path != ''
+    let l:plug_cfg = expand(l:plugpac_cfg_path . '/' . l:name)
+    let l:plug_cfg_vim = expand(l:plugpac_cfg_path . '/' . l:name . '.vim')
+    let l:path = ''
+    if filereadable(l:plug_cfg)
+      let l:path = l:plug_cfg
+    elseif filereadable(l:plug_cfg_vim)
+      let l:path = l:plug_cfg_vim
     endif
+    if l:path != ''
+      if l:type == 'lazy'
+        let l:lazy[l:name] = l:path
+      else
+        execute printf('source %s', l:path)
+      endif
+    endif
+  endif
+
+  if l:type == 'lazy'
+    call add(s:repos_lazy, l:lazy)
   endif
 
   let s:repos[a:repo] = l:opts
@@ -210,7 +219,13 @@ endfunction
 
 let s:idx = 0
 function! PackAddHandler(timer)
-  execute 'packadd ' . s:repos_lazy[s:idx]
+  let l:plug = items(s:repos_lazy[s:idx])[0]
+  let l:name = l:plug[0]
+  let l:path = l:plug[1]
+  if filereadable(l:path)
+    execute printf('source %s', l:path)
+  endif
+  execute 'packadd ' . l:name
   let s:idx += 1
   if s:idx == len(s:repos_lazy)
     echom "lazy load done !"
