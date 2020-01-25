@@ -11,10 +11,8 @@ let s:TYPE = {
       \ }
 
 
-
 function! plugpac#begin()
   let s:plugpac_cfg_path = get(g:, 'plugpac_cfg_path', '')
-  let s:plugpac_lazy_source = get(g:, 'plugpac_lazy_source', 0)
 
   let s:lazy = { 'ft': {}, 'map': {}, 'cmd': {} }
   let s:repos = {}
@@ -72,7 +70,7 @@ function! plugpac#add(repo, ...) abort
   endif
 
   " lazy plugins
-  if l:type == 'lazy'
+  if l:type == 'lazy' || l:type == 'lazyall'
     let l:opts['type'] = 'opt'
     let l:lazy[l:name] = ''
   endif
@@ -112,7 +110,7 @@ function! plugpac#add(repo, ...) abort
       let l:path = l:plug_cfg_vim
     endif
     if l:path != ''
-      if l:type == 'lazy' && s:plugpac_lazy_source
+      if l:type == 'lazyall'
         let l:lazy[l:name] = l:path
       else
         execute printf('source %s', l:path)
@@ -120,7 +118,7 @@ function! plugpac#add(repo, ...) abort
     endif
   endif
 
-  if l:type == 'lazy'
+  if l:type == 'lazy' || l:type == 'lazyall'
     call add(s:repos_lazy, l:lazy)
   endif
 
