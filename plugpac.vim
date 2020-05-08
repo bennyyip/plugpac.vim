@@ -14,7 +14,7 @@ let s:TYPE = {
 function! plugpac#begin()
   let s:plugpac_cfg_path = get(g:, 'plugpac_cfg_path', '')
 
-  let s:lazy = { 'ft': {}, 'map': {}, 'cmd': {} }
+  let s:lazy = { 'ft': {}, 'map': {}, 'cmd': {}, 'event': {} }
   let s:repos = {}
   let s:repos_lazy = []
 
@@ -55,6 +55,12 @@ function! plugpac#end()
     augroup END
   endfor
 
+  for [l:name, l:events] in items(s:lazy.event)
+    augroup PlugPac
+      execute printf('autocmd %s * ++once packadd %s', l:events, l:name)
+    augroup END
+  endfor
+
 endfunction
 
 " https://github.com/k-takata/minpac/issues/28
@@ -81,6 +87,12 @@ function! plugpac#add(repo, ...) abort
     let s:lazy.ft[l:name] = l:ft
   endif
 
+  if has_key(l:opts, 'event')
+    let l:opts['type'] = 'opt'
+    let l:event = type(l:opts.event) == s:TYPE.list ? join(l:opts.event, ',') : l:opts.event
+    let s:lazy.event[l:name] = l:event
+  endif
+
   if has_key(l:opts, 'on')
     let l:opts['type'] = 'opt'
     for l:cmd in s:to_a(l:opts.on)
@@ -99,7 +111,7 @@ function! plugpac#add(repo, ...) abort
     endfor
   endif
 
-  " Load plugi config if exist.
+  " Load plugin config if exist.
   if s:plugpac_cfg_path != ''
     let l:plug_cfg = expand(s:plugpac_cfg_path . '/' . l:name)
     let l:plug_cfg_vim = expand(s:plugpac_cfg_path . '/' . l:name . '.vim')
