@@ -187,7 +187,7 @@ function! s:setup_command()
   command! -bar -nargs=+ Pack call plugpac#add(<args>)
 
   command! -bar PackInstall call s:init_minpac() | call minpac#update(keys(filter(copy(g:minpac#pluglist), {-> !isdirectory(v:val.dir . '/.git')})))
-  command! -bar PackUpdate  call s:init_minpac() | call minpac#update('', {'do': 'call minpac#status()'})
+  command! -bar PackUpdate  call s:init_minpac() | call minpac#update()
   command! -bar PackClean   call s:init_minpac() | call minpac#clean()
   command! -bar PackStatus  call s:init_minpac() | call minpac#status()
   command! -bar -nargs=1 -complete=customlist,s:plugin_dir_complete PackDisable call s:disable_plugin(<q-args>)
