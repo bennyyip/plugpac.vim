@@ -236,10 +236,10 @@ function! PackAddHandler(timer)
   let l:plug = items(s:repos_lazy[s:idx])[0]
   let l:name = l:plug[0]
   let l:path = l:plug[1]
+  execute 'packadd ' . l:name
   if filereadable(l:path)
     execute printf('source %s', l:path)
   endif
-  execute 'packadd ' . l:name
   let s:idx += 1
   if s:idx == len(s:repos_lazy)
     echom "lazy load done !"
