@@ -1,8 +1,31 @@
-" Author:  Ben Yip (yebenmy@protonmail.com)
+" Author:  Ben Yip (yebenmy@gmail.com)
 " URL:     https://github.com/bennyyip/plugpac.vim
-" Version: 1.0
-" License: MIT
+" Version: 1.1
+"
+" Copyright (c) 2023 Ben Yip
+"
+" MIT License
+"
+" Permission is hereby granted, free of charge, to any person obtaining
+" a copy of this software and associated documentation files (the
+" "Software"), to deal in the Software without restriction, including
+" without limitation the rights to use, copy, modify, merge, publish,
+" distribute, sublicense, and/or sell copies of the Software, and to
+" permit persons to whom the Software is furnished to do so, subject to
+" the following conditions:
+"
+" The above copyright notice and this permission notice shall be
+" included in all copies or substantial portions of the Software.
+"
+" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+" EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+" NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+" LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+" OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+" WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 " ---------------------------------------------------------------------
+
 let s:TYPE = {
       \   'string':  type(''),
       \   'list':    type([]),
@@ -11,8 +34,11 @@ let s:TYPE = {
       \ }
 
 function! plugpac#begin()
-  let s:lazy = { 'ft': {}, 'map': {}, 'cmd': {} }
+  let s:plugpac_rc_path = get(g:, 'plugpac_rc_path', '')
+
+  let s:lazy = { 'ft': {}, 'map': {}, 'cmd': {}, 'delay': {}}
   let s:repos = {}
+  let s:delay_repos = []
 
   if exists('#PlugPac')
     augroup PlugPac
@@ -36,8 +62,8 @@ function! plugpac#end()
       for [l:mode, l:map_prefix, l:key_prefix] in
             \ [['i', '<C-O>', ''], ['n', '', ''], ['v', '', 'gv'], ['o', '', '']]
         execute printf(
-        \ '%snoremap <silent> %s %s:<C-U>packadd %s<bar>call <SID>do_map(%s, %s, "%s")<CR>',
-        \  l:mode, l:map, l:map_prefix, l:name, string(l:map), l:mode != 'i', l:key_prefix)
+              \ '%snoremap <silent> %s %s:<C-U>packadd %s<bar>call <SID>do_map(%s, %s, "%s")<CR>',
+              \  l:mode, l:map, l:map_prefix, l:name, string(l:map), l:mode != 'i', l:key_prefix)
       endfor
     endfor
   endfor
@@ -45,9 +71,9 @@ function! plugpac#end()
   runtime! OPT ftdetect/**/*.vim
   runtime! OPT after/ftdetect/**/*.vim
 
-  for [name, fts] in items(s:lazy.ft)
+  for [l:name, l:fts] in items(s:lazy.ft)
     augroup PlugPac
-      execute printf('autocmd FileType %s packadd %s', fts, name)
+      execute printf('autocmd FileType %s packadd %s', l:fts, l:name)
     augroup END
   endfor
 endfunction
@@ -56,9 +82,14 @@ endfunction
 function! plugpac#add(repo, ...) abort
   let l:opts = get(a:000, 0, {})
   let l:name = substitute(a:repo, '^.*/', '', '')
+  let l:default_type = get(g:, 'plugpac_default_type', 'start')
+  let l:type = get(l:opts, 'type', 'delay')
+  if l:type == 'delay'
+    call add(s:delay_repos, l:name)
+  endif
 
   " `for` and `on` implies optional
-  if has_key(l:opts, 'for') || has_key(l:opts, 'on')
+  if has_key(l:opts, 'for') || has_key(l:opts, 'on') || l:type == 'delay'
     let l:opts['type'] = 'opt'
   endif
 
@@ -84,6 +115,25 @@ function! plugpac#add(repo, ...) abort
     endfor
   endif
 
+  if s:plugpac_rc_path != ''
+    let l:pre_rc_path = expand(s:plugpac_rc_path . '/pre-' . substitute(l:name, '\.n\?vim$', '', '') . '.vim')
+    let l:rc_path = expand(s:plugpac_rc_path . '/' . substitute(l:name, '\.n\?vim$', '', '') . '.vim')
+    if filereadable(l:pre_rc_path)
+        execute printf('source %s', l:pre_rc_path)
+    endif
+    if filereadable(l:rc_path)
+      if l:type == 'delay'
+        let s:lazy.delay[l:name] = l:rc_path
+      else
+        execute printf('source %s', l:rc_path)
+      endif
+    endif
+  endif
+
+  if l:type == 'delay' && !has_key(s:lazy.delay, l:name)
+    let s:lazy.delay[l:name] = ''
+  endif
+
   let s:repos[a:repo] = l:opts
 endfunction
 
@@ -106,7 +156,7 @@ function! s:err(msg)
 endfunction
 
 function! s:do_cmd(cmd, bang, start, end, args)
-  exec printf('%s%s%s %s', (a:start == a:end ? '' : (a:start.','.a:end)), a:cmd, a:bang, a:args)
+  execute printf('%s%s%s %s', (a:start == a:end ? '' : (a:start.','.a:end)), a:cmd, a:bang, a:args)
 endfunction
 
 function! s:do_map(map, with_prefix, prefix)
@@ -180,3 +230,20 @@ function! s:get_plugin_list()
   call map(s:plugin_list, {-> substitute(v:val, '^.*[/\\]', '', '')})
   return s:plugin_list
 endfunction
+
+function s:delay_load()
+  for l:name in s:delay_repos
+    let l:rc = s:lazy.delay[l:name]
+
+    execute 'packadd ' . l:name
+    if l:rc != ''
+      execute printf('source %s', l:rc)
+    endif
+  endfor
+endfunction
+
+augroup PlugPacDelay
+  autocmd!
+  autocmd VimEnter * call timer_start(0, {timer -> s:delay_load()})
+augroup END
+
