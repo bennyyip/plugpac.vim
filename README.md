@@ -63,6 +63,8 @@ Reload .vimrc and `:PackInstall` to install plugins.
 
 `Pack` command just handles `for` and `on` options(i.e. lazy load, implies `'type': 'opt'`). Other options are passed to `minpac#add` directly. See [minpac][1] for more information.
 
+[How it use plugpac.vim](https://github.com/bennyyip/dot-vim/blob/master/pack.vim)
+
 ## Options
 
 `g:plugpac_plugin_config_path`: Folder for plugin config. For example, if its value is `~/.vim/plugin_config`, config file for `dense-analysis/ale` would be `~/.vim/plugin_config/ale.vim`. If you want it to be sourced before the plugin is loaded, prefix the file name with `pre-`, e.g. `pre-ale.vim`.
