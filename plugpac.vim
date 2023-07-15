@@ -33,7 +33,7 @@ let s:TYPE = {
       \   'funcref': type(function('call'))
       \ }
 
-function! plugpac#begin()
+function! plugpac#Begin()
   let s:plugpac_rc_path = get(g:, 'plugpac_rc_path', '')
 
   let s:lazy = { 'ft': {}, 'map': {}, 'cmd': {}, 'delay': {}}
@@ -50,7 +50,7 @@ function! plugpac#begin()
   call s:setup_command()
 endfunction
 
-function! plugpac#end()
+function! plugpac#End()
   for [l:name, l:cmds] in items(s:lazy.cmd)
     for l:cmd in l:cmds
       execute printf("command! -nargs=* -range -bang %s packadd %s | call s:do_cmd('%s', \"<bang>\", <line1>, <line2>, <q-args>)", l:cmd, l:name, l:cmd)
@@ -137,7 +137,7 @@ function! plugpac#add(repo, ...) abort
   let s:repos[a:repo] = l:opts
 endfunction
 
-function! plugpac#has_plugin(plugin)
+function! plugpac#HasPlugin(plugin)
   return index(s:get_plugin_list(), a:plugin) != -1
 endfunction
 
@@ -246,4 +246,3 @@ augroup PlugPacDelay
   autocmd!
   autocmd VimEnter * call timer_start(0, {timer -> s:delay_load()})
 augroup END
-
