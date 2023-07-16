@@ -62,7 +62,7 @@ function! plugpac#End()
       for [l:mode, l:map_prefix, l:key_prefix] in
             \ [['i', '<C-O>', ''], ['n', '', ''], ['v', '', 'gv'], ['o', '', '']]
         execute printf(
-              \ '%snoremap <silent> %s %s:<C-U>packadd %s<bar>call <SID>do_map(%s, %s, "%s")<CR>',
+              \ '%snoremap <silent> %s %s:<C-U>call <SID>do_map("%s", %s, %s, "%s")<CR>',
               \  l:mode, l:map, l:map_prefix, l:name, string(l:map), l:mode != 'i', l:key_prefix)
       endfor
     endfor
@@ -83,13 +83,16 @@ function! plugpac#add(repo, ...) abort
   let l:opts = get(a:000, 0, {})
   let l:name = substitute(a:repo, '^.*/', '', '')
   let l:default_type = get(g:, 'plugpac_default_type', 'start')
-  let l:type = get(l:opts, 'type', 'delay')
-  if l:type == 'delay'
-    call add(s:delay_repos, l:name)
-  endif
+  let l:type = get(l:opts, 'type', default_type)
 
   " `for` and `on` implies optional
-  if has_key(l:opts, 'for') || has_key(l:opts, 'on') || l:type == 'delay'
+  if has_key(l:opts, 'for') || has_key(l:opts, 'on')
+    let l:type = 'opt'
+    let l:opts['type'] = 'opt'
+  endif
+
+  if l:type == 'delay'
+    call add(s:delay_repos, l:name)
     let l:opts['type'] = 'opt'
   endif
 
@@ -159,7 +162,11 @@ function! s:do_cmd(cmd, bang, start, end, args)
   execute printf('%s%s%s %s', (a:start == a:end ? '' : (a:start.','.a:end)), a:cmd, a:bang, a:args)
 endfunction
 
-function! s:do_map(map, with_prefix, prefix)
+function! s:do_map(plugin, map, with_prefix, prefix)
+  execute "unmap " .. a:map
+  execute "iunmap " .. a:map
+  execute "packadd " .. a:plugin
+  echom a:plugin
   let extra = ''
   while 1
     let c = getchar(0)

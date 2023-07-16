@@ -59,12 +59,12 @@ export def End()
   endfor
 
   for [name, maps] in items(lazy.map)
-    for _map in maps
-      for [_mode, map_prefix, key_prefix] in
-            \ [['i', '<C-O>', ''], ['n', '', ''], ['v', '', 'gv'], ['o', '', '']]
+    for map_ in maps
+      for [mode_, map_prefix, key_prefix] in
+        [['i', '<C-\><C-O>', ''], ['n', '', ''], ['v', '', 'gv'], ['o', '', '']]
         execute printf(
-               '%snoremap <silent> %s %<C-U>packadd %s<bar>call DoMap(%s, %s, "%s")<CR>',
-                _mode, _map, map_prefix, name, string(_map), _mode != 'i', key_prefix)
+          '%snoremap <silent> %s %s:<C-U>call <SID>DoMap("%s", %s, v:%s, "%s")<CR>',
+        mode_, map_, map_prefix, name, string(map_), mode_ != 'i', key_prefix)
       endfor
     endfor
   endfor
@@ -74,26 +74,29 @@ export def End()
 
   for [name, fts] in items(lazy.ft)
     augroup PlugPac
-      execute printf('autocmd FileType %s packadd %s', fts, name)
+      execute printf('autocmd FileType %s ++once packadd %s', fts, name)
     augroup END
   endfor
 enddef
 
 export def Add(repo: string, opts: dict<any> = {})
-  var name = substitute(repo, '^.*/', '', '')
-  var default_type = get(g:, 'plugpac_default_type', 'start')
-  var type = get(opts, 'type', 'delay')
-  if type == 'delay'
-    call add(delay_repos, name)
+  const name = substitute(repo, '^.*/', '', '')
+  const default_type = get(g:, 'plugpac_default_type', 'start')
+  var type = get(opts, 'type', default_type)
+
+  # `for` and `on` implies optional and override delay
+  if has_key(opts, 'for') || has_key(opts, 'on')
+    type = 'opt'
+    opts['type'] = 'opt'
   endif
 
-  # `for` and `on` implies optional
-  if has_key(opts, 'for') || has_key(opts, 'on') || type == 'delay'
+  if type == 'delay'
+    call add(delay_repos, name)
     opts['type'] = 'opt'
   endif
 
   if has_key(opts, 'for')
-    var ft = type(opts.for) == v:t_list ? join(opts.for, ',') : opts.for
+    const ft = type(opts.for) == v:t_list ? join(opts.for, ',') : opts.for
     lazy.ft[name] = ft
   endif
 
@@ -115,8 +118,8 @@ export def Add(repo: string, opts: dict<any> = {})
   endif
 
   if plugpac_plugin_conf_path != '' && has_key(GetInstalledPlugins(), name)
-    var pre_rc_path = expand(plugpac_plugin_conf_path .. '/pre-' .. substitute(name, '\.n\?vim$', '', '') .. '.vim')
-    var rc_path = expand(plugpac_plugin_conf_path .. '/' .. substitute(name, '\.n\?vim$', '', '') .. '.vim')
+    const pre_rc_path = expand(plugpac_plugin_conf_path .. '/pre-' .. substitute(name, '\.n\?vim$', '', '') .. '.vim')
+    const rc_path = expand(plugpac_plugin_conf_path .. '/' .. substitute(name, '\.n\?vim$', '', '') .. '.vim')
     if filereadable(pre_rc_path)
         execute printf('source %s', pre_rc_path)
     endif
@@ -155,32 +158,36 @@ def Err(msg: any)
 enddef
 
 
-def DoCmd(cmd: any, bang: any, start_: any, end_: any, args_: any)
-  execute printf('%s%s%s %s', (start_ == end_ ? '' : (start_.','.end_)), cmd, bang, args_)
+def DoCmd(cmd: any, bang: any, start_: number, end_: number, args_: any)
+  execute printf('%s%s%s %s', (start_ == end_ ? '' : (start_ .. ',' .. end_)), cmd, bang, args_)
 enddef
 
-def DoMap(map_: any, with_prefix: any, prefix: any)
-  let extra = ''
+def DoMap(plugin: string, map_: any, with_prefix: any, prefix_: any)
+  execute "unmap " .. map_
+  execute "iunmap " .. map_
+  execute "packadd " .. plugin
+  var extra = ''
   while 1
-    let c = getchar(0)
+    const c = getchar(0)
     if c == 0
       break
     endif
-    extra .= nr2char(c)
+    extra = extra .. nr2char(c)
   endwhile
 
+
   if with_prefix
-    let prefix = v:count ? v:count : ''
-    let prefix .= '"' .. v:register .. prefix
+    var prefix = v:count ? v:count : ''
+    prefix ..= '"' .. v:register .. prefix_
     if mode(1) == 'no'
       if v:operator == 'c'
-        let prefix = "\<esc>" . prefix
+        prefix = "\<esc>" .. prefix
       endif
-      let prefix .= v:operator
+      prefix ..= v:operator
     endif
-    call feedkeys(prefix, 'n')
+    feedkeys(prefix, 'n')
   endif
-  call feedkeys(substitute(map_, '^<Plug>', "\<Plug>", '') . extra)
+  feedkeys(substitute(map_, '^<Plug>', "\<Plug>", '') .. extra)
 enddef
 
 def Setup_command()
@@ -220,7 +227,7 @@ def DisableEnablePlugin(plugin: string, disable: bool)
     return
   endif
 
-  var plugin_dir = plugins[plugin]
+  const plugin_dir = plugins[plugin]
 
   const dst_dir = substitute(plugin_dir, '[/\\]' .. src_ .. '[/\\]\ze[^/]\+$', '/' .. dst .. '/', '')
   if isdirectory(dst_dir)
@@ -253,7 +260,7 @@ def GetInstalledPlugins(type_: string = 'all'): dict<string>
 
   const pat = 'pack/minpac/' .. t .. '/*'
   final plugin_paths = filter(globpath(&packpath, pat, 0, 1), (k, v) => isdirectory(v))
-  var result = {}
+  final result = {}
   for p in plugin_paths
     result[substitute(p, '^.*[/\\]', '', '')] = p
   endfor
@@ -274,5 +281,4 @@ def DelayLoad()
   endfor
 enddef
 
-autocmd VimEnter * call timer_start(0, (timer) => DelayLoad())
-
+autocmd VimEnter * ++once call timer_start(0, (timer) => DelayLoad())

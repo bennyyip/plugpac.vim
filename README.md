@@ -82,6 +82,7 @@ Reload .vimrc and `:PackInstall` to install plugins.
 
 ## History
 
+- 2.1: Fix <Plug> Map
 - 2.0: Rewrite in Vim9
 - 1.1: Support delay load and plugin config. **BREAKS**: Functions `plugpac#{begin,end,has_plugin}` rename to `plugpac#{Begin,End,HasPlugin}`
 - 1.0: Initial version.
