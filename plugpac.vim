@@ -37,7 +37,7 @@ const plugpac_plugin_conf_path = get(g:, 'plugpac_plugin_conf_path', '')
 
 export def Begin()
 
-  lazy = { 'ft': {}, 'map': {}, 'cmd': {}, 'delay': {}}
+  lazy = { 'ft': {}, 'map': {}, 'cmd': {}, 'delay': {} }
   repos = {}
   delay_repos = []
 
@@ -51,10 +51,11 @@ export def Begin()
   call Setup_command()
 enddef
 
+
 export def End()
   for [name, cmds] in items(lazy.cmd)
     for cmd in cmds
-      execute printf("command! -nargs=* -range -bang %s packadd %s | call DoCmd('%s', \"<bang>\", <line1>, <line2>, <q-args>)", cmd, name, cmd)
+      execute printf("command! -nargs=* -range -bang %s call DoCmd('%s', '%s', \"<bang>\", <line1>, <line2>, <q-args>)", cmd, name, cmd)
     endfor
   endfor
 
@@ -64,7 +65,7 @@ export def End()
         [['i', '<C-\><C-O>', ''], ['n', '', ''], ['v', '', 'gv'], ['o', '', '']]
         execute printf(
           '%snoremap <silent> %s %s:<C-U>call <SID>DoMap("%s", %s, v:%s, "%s")<CR>',
-        mode_, map_, map_prefix, name, string(map_), mode_ != 'i', key_prefix)
+          mode_, map_, map_prefix, name, string(map_), mode_ != 'i', key_prefix)
       endfor
     endfor
   endfor
@@ -91,7 +92,6 @@ export def Add(repo: string, opts: dict<any> = {})
   endif
 
   if type == 'delay'
-    call add(delay_repos, name)
     opts['type'] = 'opt'
   endif
 
@@ -112,31 +112,38 @@ export def Add(repo: string, opts: dict<any> = {})
         endif
       else
         call Err('Invalid `on` option: ' .. cmd ..
-                 '. Should start with an uppercase letter or `<Plug>`.')
+          '. Should start with an uppercase letter or `<Plug>`.')
       endif
     endfor
   endif
 
-  if plugpac_plugin_conf_path != '' && has_key(GetInstalledPlugins(), name)
-    const pre_rc_path = expand(plugpac_plugin_conf_path .. '/pre-' .. substitute(name, '\.n\?vim$', '', '') .. '.vim')
-    const rc_path = expand(plugpac_plugin_conf_path .. '/' .. substitute(name, '\.n\?vim$', '', '') .. '.vim')
-    if filereadable(pre_rc_path)
-        execute printf('source %s', pre_rc_path)
-    endif
-    if filereadable(rc_path)
-      if type == 'delay'
-        lazy.delay[name] = rc_path
-      else
-        execute printf('source %s', rc_path)
-      endif
+  const pre_rc_path = GetRcPath(name, true)
+  const rc_path = GetRcPath(name, false)
+  if filereadable(pre_rc_path)
+    execute printf('source %s', pre_rc_path)
+  endif
+  if filereadable(rc_path)
+    if type == 'delay' || type == 'start'
+      call add(delay_repos, name)
+      lazy.delay[name] = rc_path
     endif
   endif
 
   if type == 'delay' && !has_key(lazy.delay, name)
+    call add(delay_repos, name)
     lazy.delay[name] = ''
   endif
 
   repos[repo] = opts
+enddef
+
+def GetRcPath(plugin: string, is_pre: bool = false): string
+  if plugpac_plugin_conf_path != '' && has_key(GetInstalledPlugins(), plugin)
+    const prefix = is_pre ? 'pre-' : ''
+    return expand(plugpac_plugin_conf_path .. '/' .. prefix .. substitute(plugin, '\.n\?vim$', '', '') .. '.vim')
+  else
+    return ''
+  endif
 enddef
 
 export def HasPlugin(plugin: string): bool
@@ -158,7 +165,15 @@ def Err(msg: any)
 enddef
 
 
-def DoCmd(cmd: any, bang: any, start_: number, end_: number, args_: any)
+def DoCmd(plugin: string, cmd: any, bang: any, start_: number, end_: number, args_: any)
+  execute 'delcommand ' .. cmd
+  execute "packadd " .. plugin
+
+  const rc_path = GetRcPath(plugin)
+  if filereadable(rc_path)
+    execute printf('source %s', rc_path)
+  endif
+
   execute printf('%s%s%s %s', (start_ == end_ ? '' : (start_ .. ',' .. end_)), cmd, bang, args_)
 enddef
 
@@ -166,6 +181,12 @@ def DoMap(plugin: string, map_: any, with_prefix: any, prefix_: any)
   execute "unmap " .. map_
   execute "iunmap " .. map_
   execute "packadd " .. plugin
+
+  const rc_path = GetRcPath(plugin)
+  if filereadable(rc_path)
+    execute printf('source %s', rc_path)
+  endif
+
   var extra = ''
   while 1
     const c = getchar(0)
@@ -201,7 +222,7 @@ def Setup_command()
   command! -bar -nargs=1 -complete=customlist,OptPluginComplete PackEnable call DisableEnablePlugin(<q-args>, v:false)
 enddef
 
-def Init()
+export def Init()
   packadd minpac
 
   minpac#init()

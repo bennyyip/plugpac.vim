@@ -67,9 +67,8 @@ Reload .vimrc and `:PackInstall` to install plugins.
 
 ## Options
 
-`g:plugpac_plugin_config_path`: Folder for plugin config. For example, if its value is `~/.vim/plugin_config`, config file for `dense-analysis/ale` would be `~/.vim/plugin_config/ale.vim`. If you want it to be sourced before the plugin is loaded, prefix the file name with `pre-`, e.g. `pre-ale.vim`.
-
-`g:plugpac_default_type`: `type` option default value for plugin. Possible values are `start`, `opt`, `delay`. Default is `start`.
+- `g:plugpac_plugin_config_path`: Folder for plugin config. For example, if its value is `~/.vim/plugin_config`, config file for `dense-analysis/ale` would be `~/.vim/plugin_config/ale.vim`. If you want it to be sourced before the plugin is loaded, prefix the file name with `pre-`, e.g. `pre-ale.vim`.
+- `g:plugpac_default_type`: `type` option default value for plugin. Possible values are `start`, `opt`, `delay`. Default is `start`.
 
 ## Commands
 
