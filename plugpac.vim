@@ -1,7 +1,7 @@
 vim9script
 # Author:  Ben Yip (yebenmy@gmail.com)
 # URL:     http//github.com/bennyyip/plugpac.vim
-# Version: 2.0
+# Version: 2.2
 #
 # Copyright (c) 2023 Ben Yip
 #
@@ -29,17 +29,18 @@ vim9script
 
 var lazy = { 'ft': {}, 'map': {}, 'cmd': {}, 'delay': {} }
 var repos = {}
-var delay_repos = []
 
 var cached_installed_plugins = {}
 
+var minpac_init_opts = {}
+
 const plugpac_plugin_conf_path = get(g:, 'plugpac_plugin_conf_path', '')
 
-export def Begin()
-
+export def Begin(opts: dict<any> = {})
   lazy = { 'ft': {}, 'map': {}, 'cmd': {}, 'delay': {} }
   repos = {}
-  delay_repos = []
+
+  minpac_init_opts = opts
 
   if exists('#PlugPac')
     augroup PlugPac
@@ -74,16 +75,44 @@ export def End()
   runtime! OPT after/ftdetect/**/*.vim
 
   for [name, fts] in items(lazy.ft)
-    augroup PlugPac
-      execute printf('autocmd FileType %s ++once packadd %s', fts, name)
-    augroup END
+    autocmd_add([{
+      event: 'FileType',
+      pattern: fts,
+      group: 'PlugPac',
+      once: true,
+      cmd: $'packadd {name}',
+    }])
   endfor
+
+  for name in keys(lazy.delay)
+    autocmd_add([{
+      event: 'VimEnter',
+      pattern: '*',
+      group: 'PlugPac',
+      once: true,
+      cmd: $'timer_start(lazy.delay["{name}"].delay, (_) => lazy.delay["{name}"].load())',
+    }])
+  endfor
+
+  timer_start(0, (timer) => {
+    for [k, v] in items(lazy.delay)
+      if !v.done
+        return
+      endif
+    endfor
+    doautocmd VimEnter
+    timer_stop(timer)
+  }, { repeat: -1 })
+
 enddef
 
 export def Add(repo: string, opts: dict<any> = {})
   const name = substitute(repo, '^.*/', '', '')
   const default_type = get(g:, 'plugpac_default_type', 'start')
   var type = get(opts, 'type', default_type)
+  if opts->has_key('delay')
+    type = 'delay'
+  endif
 
   # `for` and `on` implies optional and override delay
   if has_key(opts, 'for') || has_key(opts, 'on')
@@ -93,6 +122,15 @@ export def Add(repo: string, opts: dict<any> = {})
 
   if type == 'delay'
     opts['type'] = 'opt'
+  endif
+
+  repos[repo] = opts
+
+  if !HasPlugin(name)
+    timer_start(20, (_) => {
+      echow $'Missing plugin `{repo}`. Run :PackInstall to install it.'
+    })
+    return
   endif
 
   if has_key(opts, 'for')
@@ -120,25 +158,36 @@ export def Add(repo: string, opts: dict<any> = {})
   const pre_rc_path = GetRcPath(name, true)
   const rc_path = GetRcPath(name, false)
   if filereadable(pre_rc_path)
-    execute printf('source %s', pre_rc_path)
+    execute $'source {pre_rc_path}'
   endif
   if filereadable(rc_path)
     if type == 'delay' || type == 'start'
-      call add(delay_repos, name)
-      lazy.delay[name] = rc_path
+      lazy.delay[name] = {
+        delay: opts->get('delay', 0),
+        done: false,
+        load: () => {
+          execute $'packadd {name}'
+          execute $'source {rc_path}'
+          lazy.delay[name].done = true
+        }
+      }
     endif
   endif
 
   if type == 'delay' && !has_key(lazy.delay, name)
-    call add(delay_repos, name)
-    lazy.delay[name] = ''
+    lazy.delay[name] = {
+      delay: opts->get('delay', 0),
+      done: false,
+      load: () => {
+        execute $'packadd {name}'
+        lazy.delay[name].done = true
+      }
+    }
   endif
-
-  repos[repo] = opts
 enddef
 
 def GetRcPath(plugin: string, is_pre: bool = false): string
-  if plugpac_plugin_conf_path != '' && has_key(GetInstalledPlugins(), plugin)
+  if plugpac_plugin_conf_path != '' && HasPlugin(plugin)
     const prefix = is_pre ? 'pre-' : ''
     return expand(plugpac_plugin_conf_path .. '/' .. prefix .. substitute(plugin, '\.n\?vim$', '', '') .. '.vim')
   else
@@ -166,25 +215,25 @@ enddef
 
 
 def DoCmd(plugin: string, cmd: any, bang: any, start_: number, end_: number, args_: any)
-  execute 'delcommand ' .. cmd
-  execute "packadd " .. plugin
+  execute $'delcommand {cmd}'
+  execute $'packadd {plugin}'
 
   const rc_path = GetRcPath(plugin)
   if filereadable(rc_path)
-    execute printf('source %s', rc_path)
+    execute $'source {rc_path}'
   endif
 
   execute printf('%s%s%s %s', (start_ == end_ ? '' : (start_ .. ',' .. end_)), cmd, bang, args_)
 enddef
 
 def DoMap(plugin: string, map_: any, with_prefix: any, prefix_: any)
-  execute "unmap " .. map_
-  execute "iunmap " .. map_
-  execute "packadd " .. plugin
+  execute $'unmap {map_}'
+  execute $'iunmap {map_}'
+  execute $'packadd {plugin}'
 
   const rc_path = GetRcPath(plugin)
   if filereadable(rc_path)
-    execute printf('source %s', rc_path)
+    execute $'source {rc_path}'
   endif
 
   var extra = ''
@@ -213,8 +262,13 @@ enddef
 
 def Setup_command()
   command! -bar -nargs=+ Pack call Add(<args>)
-
-  command! -bar PackInstall call Init() | call minpac#update(keys(filter(copy(minpac#pluglist), (k, v) => !isdirectory(v.dir .. '/.git'))))
+  command! -bar PackInstall call Init() |
+        \ call minpac#update(
+        \ minpac#pluglist
+        \ ->copy()
+        \ ->filter((k, v) => !isdirectory(v.dir .. '/.git'))
+        \ ->keys()
+        \ )
   command! -bar PackUpdate  call Init() | call minpac#update('', {'do': 'call minpac#status()'})
   command! -bar PackClean   call Init() | call minpac#clean()
   command! -bar PackStatus  call Init() | call minpac#status()
@@ -225,7 +279,7 @@ enddef
 export def Init()
   packadd minpac
 
-  minpac#init()
+  minpac#init(minpac_init_opts)
   for [repo, opts] in items(repos)
     call minpac#add(repo, opts)
   endfor
@@ -258,15 +312,22 @@ def DisableEnablePlugin(plugin: string, disable: bool)
   call rename(plugin_dir, dst_dir)
 enddef
 
-def StartPluginComplete(A: string, L: string, P: number): list<string>
-  const plugins = GetInstalledPlugins('start')
-  return filter(keys(plugins), 'v:val =~ "' .. A .. '"')
+def Matchfuzzy(l: list<string>, str: string): list<string>
+  if str == ''
+    return l
+  else
+    return matchfuzzy(l, str)
+  endif
 enddef
 
+def StartPluginComplete(A: string, L: string, P: number): list<string>
+  const plugins = GetInstalledPlugins('start')->keys()
+  return plugins->Matchfuzzy(A)
+enddef
 
 def OptPluginComplete(A: string, L: string, P: number): list<string>
-  const plugins = GetInstalledPlugins('opt')
-  return filter(keys(plugins), 'v:val =~ "' .. A .. '"')
+  const plugins = GetInstalledPlugins('opt')->keys()
+  return plugins->Matchfuzzy(A)
 enddef
 
 def GetInstalledPlugins(type_: string = 'all'): dict<string>
@@ -289,17 +350,3 @@ def GetInstalledPlugins(type_: string = 'all'): dict<string>
   cached_installed_plugins[type_] = result
   return result
 enddef
-
-
-def DelayLoad()
-  for name in delay_repos
-    const rc = lazy.delay[name]
-
-    execute 'packadd ' .. name
-    if rc != ''
-      execute printf('source %s', rc)
-    endif
-  endfor
-enddef
-
-autocmd VimEnter * ++once call timer_start(0, (timer) => DelayLoad())

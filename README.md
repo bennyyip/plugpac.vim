@@ -29,7 +29,11 @@ curl -fLo ~/.vim/autoload/plugpac.vim --create-dirs \
 ## Sample vimrc
 
 ```vim
-plugpac#Begin()
+# Pass opts to `minpac#init()`
+plugpac#Begin({
+  status_open: 'vertical',
+  verbose: 2,
+})
 
 " minpac
 Pack 'k-takata/minpac', {'type': 'opt'}
@@ -56,6 +60,8 @@ Pack 'tpope/vim-sensible', { 'rev': 'v1.2' }
 " Load after `VimEnter` Event
 Pack 'tpope/vim-rsi', { 'type': 'delay' }
 
+" Load 1000 ms after `VimEnter` Event. implies `'type' : 'delay'`
+Pack 'junegunn/fzf', { 'delay': 1000 }
 plugpac#End()
 ```
 
@@ -81,6 +87,7 @@ Reload .vimrc and `:PackInstall` to install plugins.
 
 ## History
 
+- 2.2: `plugpac#Begin()` pass opts to `minpac#init()`; Support `delay` option for `Pack`
 - 2.1: Fix <Plug> Map
 - 2.0: Rewrite in Vim9
 - 1.1: Support delay load and plugin config. **BREAKS**: Functions `plugpac#{begin,end,has_plugin}` rename to `plugpac#{Begin,End,HasPlugin}`
