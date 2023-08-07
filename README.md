@@ -69,7 +69,7 @@ Reload .vimrc and `:PackInstall` to install plugins.
 
 `Pack` command just handles `for` and `on` options(i.e. lazy load, implies `'type': 'opt'`). Other options are passed to `minpac#add` directly. See [minpac][1] for more information.
 
-[How it use plugpac.vim](https://github.com/bennyyip/dot-vim/blob/master/pack.vim)
+[How I use plugpac.vim](https://github.com/bennyyip/dot-vim/blob/master/pack.vim)
 
 ## Options
 
