@@ -33,6 +33,7 @@ curl -fLo ~/.vim/autoload/plugpac.vim --create-dirs \
 plugpac#Begin({
   status_open: 'vertical',
   verbose: 2,
+  quiet: v:false, # show no warning if any package is not installed
 })
 
 " minpac
@@ -87,6 +88,7 @@ Reload .vimrc and `:PackInstall` to install plugins.
 
 ## History
 
+- 2.3: Add `quiet` option
 - 2.2: `plugpac#Begin()` pass opts to `minpac#init()`; Support `delay` option for `Pack`
 - 2.1: Fix <Plug> Map
 - 2.0: Rewrite in Vim9

@@ -1,9 +1,9 @@
 vim9script
 # Author:  Ben Yip (yebenmy@gmail.com)
-# URL:     http//github.com/bennyyip/plugpac.vim
-# Version: 2.2
+# URL:     https://github.com/bennyyip/plugpac.vim
+# Version: 2.3
 #
-# Copyright (c) 2023 Ben Yip
+# Copyright (c) 2024 Ben Yip
 #
 # MIT License
 #
@@ -34,6 +34,9 @@ var cached_installed_plugins = {}
 
 var minpac_init_opts = {}
 
+var package_name = "minpac"
+var quiet = v:false
+
 const plugpac_plugin_conf_path = get(g:, 'plugpac_plugin_conf_path', '')
 
 export def Begin(opts: dict<any> = {})
@@ -41,6 +44,9 @@ export def Begin(opts: dict<any> = {})
   repos = {}
 
   minpac_init_opts = opts
+
+  package_name = get(opts, 'package_name', 'minpac')
+  quiet = get(opts, 'quiet', v:false)
 
   if exists('#PlugPac')
     augroup PlugPac
@@ -128,7 +134,9 @@ export def Add(repo: string, opts: dict<any> = {})
 
   if !HasPlugin(name)
     timer_start(20, (_) => {
-      echow $'Missing plugin `{repo}`. Run :PackInstall to install it.'
+      if !quiet
+        echow $'Missing plugin `{repo}`. Run :PackInstall to install it.'
+      endif
     })
     return
   endif
@@ -223,7 +231,7 @@ def DoCmd(plugin: string, cmd: any, bang: any, start_: number, end_: number, arg
     execute $'source {rc_path}'
   endif
 
-  execute printf('%s%s%s %s', (start_ == end_ ? '' : (start_ .. ',' .. end_)), cmd, bang, args_)
+  execute printf('%s%s%s %s', (start_ == end_ ? '' : $":{start_},{end_}"), cmd, bang, args_)
 enddef
 
 def DoMap(plugin: string, map_: any, with_prefix: any, prefix_: any)
@@ -247,7 +255,7 @@ def DoMap(plugin: string, map_: any, with_prefix: any, prefix_: any)
 
 
   if with_prefix
-    var prefix = v:count ? v:count : ''
+    var prefix = v:count > 0 ? v:count : ''
     prefix ..= '"' .. v:register .. prefix_
     if mode(1) == 'no'
       if v:operator == 'c'
@@ -340,7 +348,7 @@ def GetInstalledPlugins(type_: string = 'all'): dict<string>
     t = '*'
   endif
 
-  const pat = 'pack/minpac/' .. t .. '/*'
+  const pat = $'pack/{package_name}/{t}/*'
   final plugin_paths = filter(globpath(&packpath, pat, 0, 1), (k, v) => isdirectory(v))
   final result = {}
   for p in plugin_paths
